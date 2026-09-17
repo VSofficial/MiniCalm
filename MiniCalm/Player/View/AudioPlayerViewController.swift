@@ -12,21 +12,68 @@ import AVFoundation
 
 class AudioPlayerViewController: UIViewController {
     
-    let darkPurple = UIColor(red: 25/255, green: 0/255, blue: 50/255, alpha: 1.0)
+    
     var viewModel = AudioPlayerViewModel()
     let playButton = UIButton(type: .custom)
+    
+    private var isScrubbing = false
+    
+    let playbackSpeedButton = UIButton()
+    
+    let progressSlider: UISlider = {
+        let slider = UISlider()
+        slider.translatesAutoresizingMaskIntoConstraints = false
+        slider.minimumValue = 0
+        slider.maximumValue = 1
+        slider.tintColor = .systemPurple
+        return slider
+    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
         setupUI()
+        setupActions()
+        bindViewModel()
     }
+    
+    private func bindViewModel() {
+        viewModel.onProgressUpdate = { [weak self] progress in
+            guard let self = self, !self.isScrubbing else { return }
+            self.progressSlider.setValue(progress, animated: true)
+        }
+    }
+    
     
     @objc private func didTapPlayButton() {
         viewModel.playAudio()
         let imageName = viewModel.playingStatus ? "pause.circle" : "play.circle"
         playButton.setImage(UIImage(systemName: imageName), for: .normal)
     }
+    
+    
+    @objc private func sliderTouchBegan() {
+        isScrubbing = true
+    }
+    
+    @objc private func sliderTouchEnded() {
+        viewModel.seek(to: progressSlider.value)
+        isScrubbing = false
+    }
+    
+    @objc private func didTapSpeedButton() {
+        let newSpeed = viewModel.togglePlaybackSpeed()
+        playbackSpeedButton.setTitle(newSpeed.title, for: .normal)
+    }
+    
+    
+    private func setupActions() {
+        playButton.addTarget(self, action: #selector(didTapPlayButton), for: .touchUpInside)
+        progressSlider.addTarget(self, action: #selector(sliderTouchBegan), for: .touchDown)
+        progressSlider.addTarget(self, action: #selector(sliderTouchEnded), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        playbackSpeedButton.addTarget(self, action: #selector(didTapSpeedButton), for: .touchUpInside)
+    }
+    
     
     private func setupUI() {
         
@@ -58,30 +105,22 @@ class AudioPlayerViewController: UIViewController {
         titleLabel.text = "Dummy Music 1"
         titleLabel.textColor = .white
         
-        let playbackSpeedButton = UIButton()
+        
         playbackSpeedButton.translatesAutoresizingMaskIntoConstraints = false
         playbackSpeedButton.setTitle("0.1x", for: .normal)
+        playbackSpeedButton.tintColor = .systemPurple
         playbackSpeedButton.setImage(UIImage(systemName: "figure.run"), for: .normal)
         playbackSpeedButton.contentHorizontalAlignment = .fill
         playbackSpeedButton.contentVerticalAlignment = .fill
         playbackSpeedButton.imageView?.contentMode = .scaleAspectFit
         
+        
         playButton.translatesAutoresizingMaskIntoConstraints = false
+        playButton.tintColor = .systemPurple
         playButton.setImage(UIImage(systemName: "play.circle"), for: .normal)
         playButton.contentHorizontalAlignment = .fill
         playButton.contentVerticalAlignment = .fill
         playButton.imageView?.contentMode = .scaleAspectFit
-        
-        let progressSlider: UISlider = {
-            let slider = UISlider()
-            slider.translatesAutoresizingMaskIntoConstraints = false
-            slider.minimumValue = 0
-            slider.maximumValue = 1
-            slider.tintColor = .systemPurple
-            return slider
-        }()
-        
-        playButton.addTarget(self, action: #selector(didTapPlayButton), for: .touchUpInside)
         
         playerView.addSubview(titleLabel)
         playerView.addSubview(playbackSpeedButton)
@@ -135,6 +174,8 @@ class AudioPlayerViewController: UIViewController {
             
         ])
     }
+    
+    
     
 }
 
