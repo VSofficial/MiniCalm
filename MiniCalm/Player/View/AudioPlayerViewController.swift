@@ -12,13 +12,19 @@ import AVFoundation
 
 class AudioPlayerViewController: UIViewController {
     
-    
+    var session: Session?
     var viewModel = AudioPlayerViewModel()
+    var audioUrl:String?
     let playButton = UIButton(type: .custom)
+    
     
     private var isScrubbing = false
     
+    let premiumImage = UIImageView()
     let playbackSpeedButton = UIButton()
+    let titleLabel = UILabel()
+    let teacherTitle = UILabel()
+    let bgImage = UIImageView()
     
     let progressSlider: UISlider = {
         let slider = UISlider()
@@ -29,12 +35,23 @@ class AudioPlayerViewController: UIViewController {
         return slider
     }()
     
+    init(session: Session? = nil) {
+        self.session = session
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
         setupUI()
         setupActions()
         bindViewModel()
+        configureSessionData()
     }
     
     private func bindViewModel() {
@@ -46,7 +63,7 @@ class AudioPlayerViewController: UIViewController {
     
     
     @objc private func didTapPlayButton() {
-        viewModel.playAudio()
+        viewModel.playAudio(audioUrl: session?.audioUrl)
         let imageName = viewModel.playingStatus ? "pause.circle" : "play.circle"
         playButton.setImage(UIImage(systemName: imageName), for: .normal)
     }
@@ -66,6 +83,26 @@ class AudioPlayerViewController: UIViewController {
         playbackSpeedButton.setTitle(newSpeed.title, for: .normal)
     }
     
+    private func configureSessionData() {
+        guard let session = session else { return }
+        
+        titleLabel.text = session.title
+        teacherTitle.text = session.teacher
+        premiumImage.isHidden = !session.isPremium
+        
+        
+        // Fetch background image asynchronously if present
+        if let artworkUrl = session.artworkUrl {
+            URLSession.shared.dataTask(with: artworkUrl) { [weak self] data, _, _ in
+                if let data = data, let image = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        self?.bgImage.image = image
+                    }
+                }
+            }.resume()
+        }
+    }
+    
     
     private func setupActions() {
         playButton.addTarget(self, action: #selector(didTapPlayButton), for: .touchUpInside)
@@ -80,34 +117,30 @@ class AudioPlayerViewController: UIViewController {
         let bgView = UIView()
         bgView.translatesAutoresizingMaskIntoConstraints = false
         
-        let bgImage = UIImageView()
+        
         bgImage.translatesAutoresizingMaskIntoConstraints = false
         bgImage.image = UIImage(named: "bgImage")
         bgImage.contentMode = .scaleAspectFill
         bgImage.clipsToBounds = true
         bgView.addSubview(bgImage)
         
-        let teacherTitle = UILabel()
         teacherTitle.translatesAutoresizingMaskIntoConstraints = false
         teacherTitle.text = "Teacher 1"
         teacherTitle.textColor = .white
         
-        let premiumImage = UIImageView()
         premiumImage.translatesAutoresizingMaskIntoConstraints = false
         premiumImage.image = UIImage(named: "crown")
         
         let playerView = UIView()
         playerView.translatesAutoresizingMaskIntoConstraints = false
-        playerView.backgroundColor = darkPurple
+        playerView.backgroundColor = darkPurple.withAlphaComponent(0.9)
         
-        let titleLabel = UILabel()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.text = "Dummy Music 1"
         titleLabel.textColor = .white
         
-        
         playbackSpeedButton.translatesAutoresizingMaskIntoConstraints = false
-        playbackSpeedButton.setTitle("0.1x", for: .normal)
+        playbackSpeedButton.setTitle("1x", for: .normal)
         playbackSpeedButton.tintColor = .systemPurple
         playbackSpeedButton.setImage(UIImage(systemName: "figure.run"), for: .normal)
         playbackSpeedButton.contentHorizontalAlignment = .fill
@@ -174,16 +207,17 @@ class AudioPlayerViewController: UIViewController {
             
         ])
     }
-    
-    
-    
 }
 
 // SwiftUI Bridge
-struct CustomViewControllerRepresentable: UIViewControllerRepresentable {
+struct AudioPlayerViewControllerRepresentable: UIViewControllerRepresentable {
+    let session: Session
+
     func makeUIViewController(context: Context) -> AudioPlayerViewController {
-        return AudioPlayerViewController()
+        return AudioPlayerViewController(session: session)
     }
     
-    func updateUIViewController(_ uiViewController: AudioPlayerViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: AudioPlayerViewController, context: Context) {
+        uiViewController.session = session
+    }
 }
