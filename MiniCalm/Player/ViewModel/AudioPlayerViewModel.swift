@@ -90,6 +90,7 @@ class AudioPlayerViewModel {
             }
         }
     }
+    
     deinit {
         if let token = timeObserverToken {
             player?.removeTimeObserver(token)
